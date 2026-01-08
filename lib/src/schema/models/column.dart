@@ -1,168 +1,60 @@
 import 'package:flutter/foundation.dart';
-import 'package:sqlcool2/sqlcool2.dart';
+import 'table.dart';
 
-import '../../exceptions.dart';
-
-/// Convert an on delete constraint to a string
-String? onDeleteToString(OnDelete onDelete) {
-  String? res;
-  switch (onDelete) {
-    case OnDelete.cascade:
-      res = "cascade";
-      break;
-    case OnDelete.restrict:
-      res = "restrict";
-      break;
-    case OnDelete.setDefault:
-      res = "set_default";
-      break;
-    case OnDelete.setNull:
-      res = "set_null";
-      break;
-  }
-  return res;
-}
-
-/// Convert a string to an on delete constraint
-OnDelete stringToOnDelete(String value) {
-  OnDelete res;
-  switch (value) {
-    case "restrict":
-      res = OnDelete.restrict;
-      break;
-    case "cascade":
-      res = OnDelete.cascade;
-      break;
-    case "set_null":
-      res = OnDelete.setNull;
-      break;
-    case "set_default":
-      res = OnDelete.setDefault;
-      break;
-    default:
-      throw OnDeleteConstraintUnknown("Unknown on delete constraint $value");
-  }
-  return res;
-}
-
-/// A database column representation
+/// Uma representação de coluna de base de dados
 @immutable
 class DbColumn {
-  /// Provide a name and a type
-  const DbColumn(
-      {required this.name,
-      required this.type,
-      this.unique = false,
-      this.nullable = false,
-      this.check,
-      this.defaultValue,
-      this.isForeignKey = false,
-      this.reference,
-      this.onDelete});
+  /// Fornece um nome e um tipo
+  const DbColumn({
+    required this.name,
+    required this.type,
+    this.unique = false,
+    this.nullable = false,
+    this.check,
+    this.defaultValue,
+    this.isForeignKey = false,
+    this.reference,
+    this.onDelete,
+  });
 
-  /// The column name
+  /// O nome da coluna
   final String name;
 
-  /// The data type of the column
+  /// O tipo de dados da coluna
   final DbColumnType type;
 
-  /// Is the column unique
+  /// Se a coluna é única
   final bool unique;
 
-  /// Is the column nullable
+  /// Se a coluna aceita nulos
   final bool nullable;
 
-  /// The column-s default value
+  /// O valor padrão da coluna
   final String? defaultValue;
 
-  /// A check constraint
+  /// Uma restrição de verificação (CHECK)
   final String? check;
 
-  /// If the column is a foreign key
+  /// Se a coluna é uma chave estrangeira
   final bool isForeignKey;
 
-  /// A foreign key table name reference
+  /// Referência ao nome da tabela da chave estrangeira
   final String? reference;
 
-  /// The on delete constraint on a foreign key
+  /// A restrição ON DELETE na chave estrangeira
   final OnDelete? onDelete;
-
-  /// print a description of the schema
-  String describe({String spacer = "", bool isPrint = true}) {
-    final lines = <String>[
-      "${spacer}Column $name:",
-      "$spacer - Type: $type",
-      "$spacer - Unique: $unique",
-      "$spacer - Nullable: $nullable",
-      "$spacer - Default value: $defaultValue",
-      "$spacer - Is foreign key: $isForeignKey",
-      "$spacer - Reference: $reference",
-      "$spacer - On delete: $onDelete",
-    ];
-    var s = "";
-    switch (isPrint) {
-      case false:
-        s = lines.join("\n");
-        break;
-      default:
-        print(lines.join("\n"));
-    }
-    return s;
-  }
-
-  /// convert a column type to a string
-  String? typeToString() {
-    String? res;
-    switch (type) {
-      case DbColumnType.varchar:
-        res = "varchar";
-        break;
-      case DbColumnType.integer:
-        res = "integer";
-        break;
-      case DbColumnType.real:
-        res = "real";
-        break;
-      case DbColumnType.boolean:
-        res = "boolean";
-        break;
-      case DbColumnType.text:
-        res = "text";
-        break;
-      case DbColumnType.timestamp:
-        res = "timestamp";
-        break;
-      case DbColumnType.blob:
-        res = "blob";
-        break;
-    }
-    return res;
-  }
 
   @override
   String toString() => "$name $type";
 }
 
-/// The type of a database column
+/// O tipo de uma coluna de base de dados
 enum DbColumnType {
-  /// A varchar column
   varchar,
-
-  /// An integer column
   integer,
-
-  /// A double column
   real,
-
-  /// A text column
   text,
-
-  /// A boolean colum
   boolean,
-
-  /// A blob value
   blob,
-
-  /// An automatic timestamp
-  timestamp
+  timestamp,
 }

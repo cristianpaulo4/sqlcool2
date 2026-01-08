@@ -9,13 +9,15 @@ import 'pages/join.dart';
 import 'pages/select_bloc.dart';
 import 'pages/upsert.dart';
 
-void main() {
-  runApp(MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
   /// initialize the database async. We will use the [onReady]
   /// callback later to react to the initialization completed event
-  initDb(db: db);
-  initDb2(db: db2);
+  await initDb(db: db);
+  await initDb2(db: db2);
+
+  runApp(MyApp());
 }
 
 final routes = {
@@ -28,6 +30,8 @@ final routes = {
 };
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

@@ -1,18 +1,19 @@
-import 'package:sqlcool2/sqlcool2.dart';
+import 'package:sqlcool2/sqlcool.dart';
 
 import '../../conf.dart' as conf;
 import '../schema.dart';
 import 'manufacturer.dart';
 
-class Car with DbModel {
-  Car(
-      {this.id,
-      this.name,
-      this.maxSpeed,
-      this.price,
-      this.year,
-      this.is4wd,
-      this.manufacturer});
+class Car extends DbModel {
+  Car({
+    this.id,
+    this.name,
+    this.maxSpeed,
+    this.price,
+    this.year,
+    this.is4wd,
+    this.manufacturer,
+  });
 
   /// define some class properties
 
@@ -48,7 +49,7 @@ class Car with DbModel {
       "price": price,
       "year": year!.millisecondsSinceEpoch,
       "is_4wd": is4wd,
-      "manufacturer": manufacturer!.id
+      "manufacturer": manufacturer?.id,
     };
     return row;
   }
@@ -57,18 +58,20 @@ class Car with DbModel {
   @override
   Car fromDb(Map<String, dynamic> map) {
     final car = Car(
-      id: map["id"] as int?,
+      id: map["id"] as int,
       name: map["name"].toString(),
-      maxSpeed: map["max_speed"] as int?,
-      price: map["price"] as double?,
+      maxSpeed: map["max_speed"] as int,
+      price: map["price"] as double,
       year: DateTime.fromMillisecondsSinceEpoch(map["year"] as int),
       is4wd: (map["is_4wd"].toString() == "true"),
+      manufacturer: null,
     );
     // the key will be present only with join queries
     // in a simple select this data is not present
     if (map.containsKey("manufacturer")) {
-      car.manufacturer =
-          Manufacturer().fromDb(map["manufacturer"] as Map<String, dynamic>);
+      car.manufacturer = Manufacturer().fromDb(
+        map["manufacturer"] as Map<String, dynamic>,
+      );
     }
     return car;
   }
@@ -77,7 +80,8 @@ class Car with DbModel {
 
   static Future<List<Car>> selectRelated({String? where, int? limit}) async {
     final cars = List<Car>.from(
-        await Car().sqlJoin(where: where, limit: limit, verbose: true));
+      await Car().sqlJoin(where: where, limit: limit, verbose: true),
+    );
     return cars;
   }
 }

@@ -26,13 +26,11 @@ class SqlSelectBloc {
       this.joinOn,
       this.orderBy,
       this.reactive = false,
-      this.verbose = false})
-      : assert(database != null),
-        assert(database.isReady) {
+      this.verbose = false}) {
     _getItems();
     if (reactive) {
-      _changefeed = database.changefeed.listen((change) {
-        if (table != null && change.table == table) {
+      _changefeed = database.changefeed.listen((final change) {
+        if (change.table == table) {
           _getItems();
         }
         if (verbose) {
@@ -87,7 +85,7 @@ class SqlSelectBloc {
 
   /// A convenience method to update the bloc items if needed
   /// by adding to the sink
-  void update(List<DbRow> _rows) => _rowsController.sink.add(_rows);
+  void update(final List<DbRow> _rows) => _rowsController.sink.add(_rows);
 
   /// Cancel the changefeed subscription
   void dispose() {
@@ -105,8 +103,8 @@ class SqlSelectBloc {
         rows.addAll(await database.join(
             table: table,
             columns: columns,
-            joinTable: joinTable,
-            joinOn: joinOn,
+            joinTable: joinTable!,
+            joinOn: joinOn!,
             offset: offset,
             limit: limit,
             where: where,

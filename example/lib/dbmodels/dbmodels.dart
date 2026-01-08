@@ -30,7 +30,7 @@ class _DbModelPageState extends State<DbModelPage> {
           final car = cars[i];
           return ListTile(
             title: Text("${car.name}"),
-            subtitle: Text("Manufacturer: ${car.manufacturer!.name}"),
+            subtitle: Text("Manufacturer: ${car.manufacturer?.name}"),
             trailing: IconButton(
               icon: Icon(Icons.delete),
               onPressed: () async {

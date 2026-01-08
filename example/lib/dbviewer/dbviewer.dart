@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sqlcool2/sqlcool2.dart';
+import 'package:sqlcool2/sqlcool.dart';
 
 import '../appbar.dart';
 import 'table.dart';
@@ -9,13 +9,13 @@ class _DbViewerState extends State<DbViewer> {
 
   final SqlDb db;
 
-  late Map<DbTable, int?> _tableNumRows;
+  late Map<DbTable, int> _tableNumRows;
   var _ready = false;
 
-  Future<Map<DbTable, int?>> countRows() async {
+  Future<Map<DbTable, int>> countRows() async {
     await db.onReady;
-    final tnr = <DbTable, int?>{};
-    for (final table in db.schema.tables!) {
+    final tnr = <DbTable, int>{};
+    for (final table in db.schema.tables) {
       print("NR COUNT ${table.name}");
       final v = await db.count(table: table.name);
       tnr[table] = v;
@@ -26,11 +26,19 @@ class _DbViewerState extends State<DbViewer> {
 
   @override
   void initState() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      init();
+    });
     super.initState();
-    countRows().then((tnr) => setState(() {
-          _tableNumRows = tnr;
-          _ready = true;
-        }));
+  }
+
+  void init() async {
+    await countRows().then(
+      (tnr) => setState(() {
+        _tableNumRows = tnr;
+        _ready = true;
+      }),
+    );
   }
 
   @override
@@ -39,25 +47,36 @@ class _DbViewerState extends State<DbViewer> {
       return const Center(child: CircularProgressIndicator());
     }
     final rows = <Widget>[];
-    _tableNumRows.forEach((table, n) => rows.add(GestureDetector(
-            child: ListTile(
-          title: Text("${table.name}"),
-          trailing: Text("$n rows"),
-          onTap: () => Navigator.of(context).push<DbViewerTable>(
-              MaterialPageRoute(builder: (BuildContext context) {
-            return DbViewerTable(db: db, table: table);
-          })),
-        ))));
+    _tableNumRows.forEach(
+      (table, n) => rows.add(
+        GestureDetector(
+          child: ListTile(
+            title: Text(table.name),
+            trailing: Text("$n rows"),
+            onTap: () => Navigator.of(context).push<DbViewerTable>(
+              MaterialPageRoute(
+                builder: (BuildContext context) {
+                  return DbViewerTable(db: db, table: table);
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
     return Scaffold(
-        appBar: appBar(context, title: "Tables"),
-        body: ListView(children: rows));
+      appBar: appBar(context, title: "Tables"),
+      body: ListView(children: rows),
+    );
   }
 }
 
 class DbViewer extends StatefulWidget {
-  DbViewer({required this.db})
-      : assert(db.hasSchema,
-            "The database has no schema, the viewer is unavailable");
+  DbViewer({super.key, required this.db})
+    : assert(
+        db.hasSchema,
+        "The database has no schema, the viewer is unavailable",
+      );
 
   final SqlDb db;
 

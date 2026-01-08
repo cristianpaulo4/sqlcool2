@@ -9,13 +9,13 @@ void insertItemDialog(BuildContext context) {
       return AlertDialog(
         title: const Text("Add an item"),
         actions: <Widget>[
-          OutlinedButton(
+          ElevatedButton(
             child: const Text("Cancel"),
             onPressed: () {
               Navigator.of(context).pop(true);
             },
           ),
-          OutlinedButton(
+          ElevatedButton(
             child: const Text("Save"),
             onPressed: () {
               final txt = nameController.text;
@@ -35,14 +35,14 @@ void insertItemDialog(BuildContext context) {
   );
 }
 
-void deleteItemDialog(BuildContext context, String itemName, int? itemId) {
+void deleteItemDialog(BuildContext context, String itemName, int itemId) {
   showDialog<void>(
     context: context,
     builder: (BuildContext context) {
       return AlertDialog(
         title: Text("Delete $itemName?"),
         actions: <Widget>[
-          OutlinedButton(
+          ElevatedButton(
             child: const Text("Cancel"),
             onPressed: () {
               Navigator.of(context).pop();
@@ -50,13 +50,9 @@ void deleteItemDialog(BuildContext context, String itemName, int? itemId) {
           ),
           ElevatedButton(
             child: const Text("Delete"),
-            style: ButtonStyle(
-              backgroundColor: MaterialStateProperty.all(Colors.red,)
-            ),
             onPressed: () {
-              deleteItem(itemId).catchError((Object e) {
+              deleteItem(itemId).catchError((dynamic e) {
                 throw (e);
-                
               });
               Navigator.of(context).pop(true);
             },
@@ -80,13 +76,13 @@ void updateItemDialog(BuildContext context, String itemName) {
           autofocus: true,
         ),
         actions: <Widget>[
-          OutlinedButton(
+          ElevatedButton(
             child: const Text("Cancel"),
             onPressed: () {
               Navigator.of(context).pop(true);
             },
           ),
-          OutlinedButton(
+          ElevatedButton(
             child: const Text("Save"),
             onPressed: () {
               final txt = nameController.text;

@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:sqlcool2/sqlcool2.dart';
+import 'package:sqlcool2/sqlcool.dart';
 import '../conf.dart';
 
 class _PageJoinQueryState extends State<PageJoinQuery> {
@@ -10,15 +10,15 @@ class _PageJoinQueryState extends State<PageJoinQuery> {
   void initState() {
     db
         .join(
-      table: "product",
-      columns: "product.name, price, category.name as category_name",
-      joinTable: "category",
-      joinOn: "product.category = category.id",
-      verbose: true,
-    )
+          table: "product",
+          columns: "product.name, price, category.name as category_name",
+          joinTable: "category",
+          joinOn: "product.category = category.id",
+          verbose: true,
+        )
         .then((items) {
-      _streamController.sink.add(items);
-    });
+          _streamController.sink.add(items);
+        });
     super.initState();
   }
 
@@ -58,6 +58,8 @@ class _PageJoinQueryState extends State<PageJoinQuery> {
 }
 
 class PageJoinQuery extends StatefulWidget {
+  const PageJoinQuery({super.key});
+
   @override
   _PageJoinQueryState createState() => _PageJoinQueryState();
 }

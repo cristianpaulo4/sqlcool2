@@ -1,77 +1,71 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:sqlcool2/sqlcool2.dart';
 
 import 'column.dart';
 import 'table.dart';
 
-/// A database record
+/// Um registo de base de dados
 @immutable
 class DbRecord<T> {
-  /// Default constructor
+  /// Construtor padrão
   DbRecord(this.key, this.value) {
     if (!(value is T)) {
-      throw ArgumentError("Provide a value of type $T for record $key");
+      throw ArgumentError(
+          "Providencie um valor do tipo $T para o registo $key");
     }
   }
 
-  /// The record column name
+  /// O nome da coluna do registo
   final String key;
 
-  /// The record value
+  /// O valor do registo
   final T value;
 
-  /// Get the type
+  /// Obtém o tipo
   Type get type => T;
 
-  /// Get a copy of a record with a specific type
+  /// Obtém uma cópia de um registo com um tipo específico
   ///
-  /// Accepted types: String, int, double, bool
-  /// and Uint8List
-  DbRecord? copyWithType(Type t) {
+  /// Tipos aceites: String, int, double, bool e Uint8List
+  DbRecord? copyWithType(final Type t) {
     switch (t) {
       case String:
         return DbRecord<String>(key, value.toString());
-        break;
       case int:
         try {
           final v = int.parse(value.toString());
           return DbRecord<int>(key, v);
         } catch (e) {
-          throw Exception("Can not convert $value to $t "
-              "for key $key");
+          throw Exception(
+              "Não é possível converter $value para $t para a chave $key");
         }
-        break;
       case double:
         try {
           final v = double.parse(value.toString());
           return DbRecord<double>(key, v);
         } catch (e) {
-          throw Exception("Can not convert $value to $t "
-              "for key $key");
+          throw Exception(
+              "Não é possível converter $value para $t para a chave $key");
         }
-        break;
       case bool:
         final dynamic val = value.toString();
-        if (val == "true") {
+        if (val == "true" || val == "1") {
           return DbRecord<bool>(key, true);
-        } else if (val == "false") {
+        } else if (val == "false" || val == "0") {
           return DbRecord<bool>(key, false);
         } else {
-          throw Exception("Can not convert $value to $t "
-              "for key $key");
+          throw Exception(
+              "Não é possível converter $value para $t para a chave $key");
         }
-        break;
       case Uint8List:
         try {
           final v = value as Uint8List;
           return DbRecord<Uint8List>(key, v);
         } catch (e) {
-          throw Exception("Can not convert $value to $t "
-              "for key $key");
+          throw Exception(
+              "Não é possível converter $value para $t para a chave $key");
         }
-        break;
     }
     return null;
   }
@@ -82,133 +76,102 @@ class DbRecord<T> {
   }
 }
 
-/// A database row
+/// Uma linha da base de dados
 @immutable
 class DbRow {
-  /// Default constructor
+  /// Construtor padrão
   const DbRow(this.records);
 
-  /// Build a row from a single record
-  factory DbRow.fromRecord(DbRecord record) => DbRow(<DbRecord>[record]);
+  /// Constrói uma linha a partir de um único registo
+  factory DbRow.fromRecord(final DbRecord record) => DbRow(<DbRecord>[record]);
 
-  /// Create from a map of strings
-  factory DbRow.fromMap(DbTable? table, Map<String, dynamic> row) {
+  /// Cria a partir de um mapa vindo do Sqflite
+  factory DbRow.fromMap(final DbTable table, final Map<String, dynamic> row) {
     final recs = <DbRecord>[];
-    row.forEach((key, dynamic value) {
+    row.forEach((final key, final dynamic value) {
       if (key == "id") {
-        recs.add(DbRecord<int?>(key, value as int?));
+        recs.add(DbRecord<int>(key, value as int));
       } else {
-        final col = table!.column(key);
+        final col = table.column(key);
         if (col == null) {
           recs.add(DbRecord<dynamic>(key, value));
         } else {
-          //print("COL ${col.name} ${col.type}");
           switch (col.type) {
             case DbColumnType.varchar:
-              recs.add(DbRecord<String>(key, value.toString()));
-              break;
             case DbColumnType.text:
               recs.add(DbRecord<String>(key, value.toString()));
               break;
             case DbColumnType.integer:
-              int? v;
-              try {
-                v = value as int?;
-              } catch (e) {
-                rethrow;
-              }
-              recs.add(DbRecord<int?>(key, v));
+            case DbColumnType.timestamp:
+              recs.add(DbRecord<int>(key, value as int));
               break;
             case DbColumnType.real:
-              double? v;
-              try {
-                v = value as double?;
-              } catch (e) {
-                rethrow;
-              }
-              recs.add(DbRecord<double?>(key, v));
+              recs.add(DbRecord<double>(key, (value as num).toDouble()));
               break;
             case DbColumnType.boolean:
               bool v;
-              if (value == "false") {
+              if (value == "false" || value == 0 || value == "0") {
                 v = false;
-              } else if (value == "true") {
+              } else if (value == "true" || value == 1 || value == "1") {
                 v = true;
               } else {
-                throw Exception("Wrong value $value for boolean field $key");
+                throw Exception(
+                    "Valor incorreto $value para o campo booleano $key");
               }
               recs.add(DbRecord<bool>(key, v));
               break;
-            case DbColumnType.timestamp:
-              int? v;
-              try {
-                v = value as int?;
-              } catch (e) {
-                rethrow;
-              }
-              recs.add(DbRecord<int?>(key, v));
-              break;
             case DbColumnType.blob:
-              Uint8List? v;
-              try {
-                v = value as Uint8List?;
-              } catch (e) {
-                rethrow;
-              }
-              recs.add(DbRecord<Uint8List?>(key, v));
+              recs.add(DbRecord<Uint8List>(key, value as Uint8List));
               break;
           }
         }
       }
     });
-    //print("ROW $recs");
     return DbRow(recs);
   }
 
-  /// The row's records
+  /// Os registos da linha
   final List<DbRecord> records;
 
-  /// Get a record value
-  T? record<T>(String key) {
-    final rec = records.firstWhere((r) => r.key == key);
-    T? res;
-    if (rec != null) {
-      print("REC $rec");
-      try {
-        if (rec.type != dynamic) {
-          final r = rec as DbRecord<T?>;
-          res = r.value;
-        } else {
-          final r = rec.copyWithType(T) as DbRecord<T>;
-          res = r.value;
-        }
-      } catch (e) {
-        throw Exception("Type error for record $key : $e");
+  /// Obtém o valor de um registo
+  T? record<T>(final String key) {
+    try {
+      final rec = records.firstWhere((final r) => r.key == key);
+      if (rec.type != dynamic) {
+        return rec.value as T;
+      } else {
+        final r = rec.copyWithType(T);
+        return r?.value as T?;
       }
+    } catch (e) {
+      return null;
     }
-    return res;
   }
 
-  /// Convert to a map
+  /// Converte para um mapa
   Map<String, dynamic> toMap() {
     final data = <String, dynamic>{};
-    records.forEach((r) => data["${r.key}"] = r.value);
+    for (final r in records) {
+      data[r.key] = r.value;
+    }
     return data;
   }
 
-  /// Convert to a map of strings
+  /// Converte para um mapa de strings
   Map<String, String> toStringsMap() {
     final data = <String, String>{};
-    records.forEach((r) => data["${r.key}"] = r.value.toString());
+    for (final r in records) {
+      data[r.key] = r.value?.toString() ?? "NULL";
+    }
     return data;
   }
 
-  /// Get a string representation
+  /// Obtém uma representação em string da linha
   String line() {
     final l = <String>[];
-    records.forEach((rec) {
+    for (final rec in records) {
       l.add("${rec.key} : ${rec.value}");
-    });
+    }
     return l.join(",");
   }
 }

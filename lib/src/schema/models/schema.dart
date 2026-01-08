@@ -1,41 +1,35 @@
 import 'table.dart';
 
-/// The database schema representation
+/// A representação do esquema da base de dados
 class DbSchema {
-  /// Provide a set of [DbTable]
-  DbSchema([this.tables]) {
-    tables ??= <DbTable>{};
+  /// Fornece um conjunto de [DbTable]
+  DbSchema([final Set<DbTable>? tables]) {
+    this.tables = tables ?? <DbTable>{};
   }
 
-  /// The tables in the database
-  Set<DbTable>? tables;
+  /// As tabelas na base de dados
+  late Set<DbTable> tables;
 
-  /// Get a [DbTable] in the schema from it's name
-  DbTable? table(String? name) {
-    DbTable? t;
-    for (final table in tables!) {
-      if (table.name == name) {
-        t = table;
-        break;
-      }
+  /// Obtém uma [DbTable] no esquema a partir do seu nome
+  DbTable? table(final String name) {
+    for (final table in tables) {
+      if (table.name == name) return table;
     }
-    return t;
+    return null;
   }
 
-  /// Check if a [DbTable] is present in the schema from it's name
-  bool hasTable(String name) {
-    for (final table in tables!) {
-      if (table.name == name) {
-        return true;
-      }
+  /// Verifica se uma tabela existe no esquema
+  bool hasTable(final String name) {
+    for (final table in tables) {
+      if (table.name == name) return true;
     }
     return false;
   }
 
-  /// print a description of the schema
+  /// Imprime uma descrição do esquema
   void describe() {
-    for (final table in tables!) {
-      table.describe(spacer: " ");
+    for (final table in tables) {
+      print("Tabela: ${table.name}");
     }
   }
 }

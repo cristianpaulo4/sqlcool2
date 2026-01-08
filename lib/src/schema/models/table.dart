@@ -4,27 +4,27 @@ import 'package:flutter/foundation.dart';
 
 import 'column.dart';
 
-/// types of on delete actions for foreign keys
+/// Tipos de ações on delete para chaves estrangeiras
 enum OnDelete {
-  /// delete the children when the foreign key is deleted
+  /// Elimina os filhos quando a chave estrangeira é eliminada
   cascade,
 
-  /// protect the children when the foreign key is deleted
+  /// Protege os filhos quando a chave estrangeira é eliminada
   restrict,
 
-  /// set the children to null when the foreign key is deleted
+  /// Define os filhos como nulos quando a chave estrangeira é eliminada
   setNull,
 
-  /// set the children to the default value when the foreign key is deleted
+  /// Define os filhos para o valor padrão quando a chave estrangeira é eliminada
   setDefault
 }
 
-/// The class used to create tables
+/// A classe usada para criar tabelas
 class DbTable {
-  /// Default constructor
-  DbTable(this.name) : assert(name != null);
+  /// Construtor padrão
+  DbTable(this.name);
 
-  /// Name of the table: no spaces
+  /// Nome da tabela: sem espaços
   final String name;
 
   final List<String> _columns = <String>["id INTEGER PRIMARY KEY"];
@@ -32,23 +32,23 @@ class DbTable {
   final List<DbColumn> _columnsData = <DbColumn>[];
   final List<String> _fkConstraints = <String>[];
 
-  /// The columns info
+  /// Informação das colunas
   List<DbColumn> get columns => _columnsData;
 
-  /// The foreign key columns
+  /// As colunas de chave estrangeira
   List<DbColumn> get foreignKeys => _foreignKeys();
 
-  /// Get the list of queries to perform for database initialization
+  /// Obtém a lista de queries para a inicialização da base de dados
   List<String> get queries => _getQueries();
 
-  /// Get the table constraints
+  /// Obtém as restrições da tabela
   List<String> get constraints => _fkConstraints;
 
-  /// Check if a column exists
-  bool hasColumn(String name) => _hasColumn(name);
+  /// Verifica se uma coluna existe
+  bool hasColumn(final String name) => _hasColumn(name);
 
-  /// Get a column by name
-  DbColumn? column(String name) {
+  /// Obtém uma coluna pelo nome
+  DbColumn? column(final String name) {
     DbColumn? col;
     for (final c in _columnsData) {
       if (c.name == name) {
@@ -59,37 +59,26 @@ class DbTable {
     return col;
   }
 
-  /// Add an index to a column
-  ///
-  /// If a [name] is given the index name will
-  /// be set to it, otherwise it is infered from
-  /// the column name
-  void index(String column, {String? indexName}) {
-    String? idxName = column;
-    switch (indexName != null) {
-      case true:
-        idxName = indexName;
-        break;
-      default:
-        idxName = "idx_$column";
-    }
+  /// Adiciona um índice a uma coluna
+  void index(final String column, {final String? indexName}) {
+    final idxName = indexName ?? "idx_$column";
     final q = "CREATE UNIQUE INDEX IF NOT EXISTS $idxName ON $name($column)";
     _queries.add(q);
   }
 
-  /// Add a unique constraint for combined values from two columns
-  void uniqueTogether(String column1, String column2) {
+  /// Adiciona uma restrição de unicidade para valores combinados de duas colunas
+  void uniqueTogether(final String column1, final String column2) {
     final q = 'UNIQUE("$column1", "$column2")';
     _columns.add(q);
   }
 
-  /// Add a foreign key to a column
-  void foreignKey(String name,
-      {String? reference,
-      bool nullable = false,
-      bool unique = false,
-      String? defaultValue,
-      OnDelete onDelete = OnDelete.restrict}) {
+  /// Adiciona uma chave estrangeira a uma coluna
+  void foreignKey(final String name,
+      {final String? reference,
+      final bool nullable = false,
+      final bool unique = false,
+      final String? defaultValue,
+      final OnDelete onDelete = OnDelete.restrict}) {
     var q = "$name INTEGER";
     if (unique) {
       q += " UNIQUE";
@@ -102,8 +91,8 @@ class DbTable {
     }
     String fk;
     fk = "  FOREIGN KEY ($name)\n";
-    reference ??= name;
-    fk += "  REFERENCES $reference(id)\n";
+    final ref = reference ?? name;
+    fk += "  REFERENCES $ref(id)\n";
     fk += "  ON DELETE ";
     switch (onDelete) {
       case OnDelete.cascade:
@@ -127,17 +116,17 @@ class DbTable {
         defaultValue: defaultValue,
         type: DbColumnType.integer,
         isForeignKey: true,
-        reference: reference,
+        reference: ref,
         onDelete: onDelete));
   }
 
-  /// Add a varchar column
-  void varchar(String name,
-      {int? maxLength,
-      bool nullable = false,
-      bool unique = false,
-      String? defaultValue,
-      String? check}) {
+  /// Adiciona uma coluna varchar
+  void varchar(final String name,
+      {final int? maxLength,
+      final bool nullable = false,
+      final bool unique = false,
+      final String? defaultValue,
+      final String? check}) {
     var q = "$name VARCHAR";
     if (maxLength != null) {
       q += "($maxLength)";
@@ -164,12 +153,12 @@ class DbTable {
         type: DbColumnType.varchar));
   }
 
-  /// Add a text column
-  void text(String name,
-      {bool nullable = false,
-      bool unique = false,
-      String? defaultValue,
-      String? check}) {
+  /// Adiciona uma coluna de texto
+  void text(final String name,
+      {final bool nullable = false,
+      final bool unique = false,
+      final String? defaultValue,
+      final String? check}) {
     var q = "$name TEXT";
     if (unique) {
       q += " UNIQUE";
@@ -193,12 +182,12 @@ class DbTable {
         type: DbColumnType.text));
   }
 
-  /// Add a float column
-  void real(String name,
-      {bool nullable = false,
-      bool unique = false,
-      double? defaultValue,
-      String? check}) {
+  /// Adiciona uma coluna real (float)
+  void real(final String name,
+      {final bool nullable = false,
+      final bool unique = false,
+      final double? defaultValue,
+      final String? check}) {
     var q = "$name REAL";
     if (unique) {
       q += " UNIQUE";
@@ -217,18 +206,18 @@ class DbTable {
         name: name,
         unique: unique,
         nullable: nullable,
-        defaultValue: "$defaultValue",
+        defaultValue: defaultValue != null ? "$defaultValue" : null,
         check: check,
         type: DbColumnType.real));
   }
 
-  /// Add an integer column
+  /// Adiciona uma coluna inteira
   void integer(
-    String name, {
-    bool nullable = false,
-    bool unique = false,
-    int? defaultValue,
-    String? check,
+    final String name, {
+    final bool nullable = false,
+    final bool unique = false,
+    final int? defaultValue,
+    final String? check,
   }) {
     var q = "$name INTEGER";
     if (unique) {
@@ -248,27 +237,27 @@ class DbTable {
         name: name,
         unique: unique,
         nullable: nullable,
-        defaultValue: "$defaultValue",
+        defaultValue: defaultValue != null ? "$defaultValue" : null,
         check: check,
         type: DbColumnType.integer));
   }
 
-  /// Add a float column
-  void boolean(String name, {required bool defaultValue}) {
+  /// Adiciona uma coluna booleana
+  void boolean(final String name, {required final bool defaultValue}) {
     var q = "$name BOOLEAN";
-    q += " DEFAULT $defaultValue";
+    q += " DEFAULT ${defaultValue ? 1 : 0}";
     _columns.add(q);
     _columnsData.add(DbColumn(
         name: name, defaultValue: "$defaultValue", type: DbColumnType.boolean));
   }
 
-  /// Add a blob column
+  /// Adiciona uma coluna blob
   void blob(
-    String name, {
-    bool nullable = false,
-    bool unique = false,
-    Uint8List? defaultValue,
-    String? check,
+    final String name, {
+    final bool nullable = false,
+    final bool unique = false,
+    final Uint8List? defaultValue,
+    final String? check,
   }) {
     var q = "$name BLOB";
     if (unique) {
@@ -288,39 +277,40 @@ class DbTable {
         name: name,
         unique: unique,
         nullable: nullable,
-        defaultValue: "$defaultValue",
+        defaultValue: defaultValue != null ? "$defaultValue" : null,
         check: check,
         type: DbColumnType.blob));
   }
 
-  /// Add an automatic timestamp
-  void timestamp([String name = "timestamp"]) {
+  /// Adiciona um timestamp automático
+  void timestamp([final String name = "timestamp"]) {
     final q =
         "$name INTEGER DEFAULT (cast(strftime('%s','now') as int)) NOT NULL";
     _columns.add(q);
     _columnsData.add(DbColumn(name: name, type: DbColumnType.timestamp));
   }
 
-  /// Print the queries to perform for database initialization
+  /// Imprime as queries a executar para a inicialização da base de dados
   void printQueries() {
-    queries.forEach((q) {
+    for (final q in queries) {
       print("----------");
       print(q);
-    });
+    }
   }
 
-  /// print a description of the schema
-  void describe({String spacer = ""}) {
+  /// Imprime uma descrição do esquema
+  void describe({final String spacer = ""}) {
     print("${spacer}Table $name:");
     for (final column in columns) {
-      column.describe(spacer: "  ");
+      // Nota: assumindo que DbColumn tem o método describe ajustado para null safety
+      print("$spacer  ${column}");
     }
   }
 
   @override
   String toString() => name;
 
-  /// The string for the table create query
+  /// A string para a query de criação da tabela
   String queryString() {
     var q = "CREATE TABLE IF NOT EXISTS $name (\n";
     q += _columns.join(",\n");
@@ -338,19 +328,16 @@ class DbTable {
 
   List<DbColumn> _foreignKeys() {
     final fks = <DbColumn>[];
-    _columnsData.forEach((col) {
+    for (final col in _columnsData) {
       if (col.isForeignKey) {
         fks.add(col);
       }
-    });
+    }
     return fks;
   }
 
-  bool _hasColumn(String name) {
-    final hasCol = column(name);
-    if (hasCol == null) {
-      return false;
-    }
-    return true;
+  bool _hasColumn(final String name) {
+    final col = column(name);
+    return col != null;
   }
 }

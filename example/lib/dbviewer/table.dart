@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sqlcool2/sqlcool2.dart';
+import 'package:sqlcool2/sqlcool.dart';
 import '../appbar.dart';
 
 class _DbViewerTableState extends State<DbViewerTable> {
@@ -12,9 +12,12 @@ class _DbViewerTableState extends State<DbViewerTable> {
   var _ready = false;
 
   Future<void> _getData() async {
-    _rows = await db.select(table: table.name, limit: 100).catchError(
-        (dynamic e) =>
-            throw Exception("Can not select from table ${table.name}"));
+    _rows = await db
+        .select(table: table.name, limit: 100)
+        .catchError(
+          (dynamic e) =>
+              throw Exception("Can not select from table ${table.name}"),
+        );
   }
 
   @override
@@ -34,15 +37,14 @@ class _DbViewerTableState extends State<DbViewerTable> {
                 final row = _rows[index];
                 return ListTile(title: Text("${row.line()}"));
               },
-            ))
-        : const Center(
-            child: CircularProgressIndicator(),
-          );
+            ),
+          )
+        : const Center(child: CircularProgressIndicator());
   }
 }
 
 class DbViewerTable extends StatefulWidget {
-  const DbViewerTable({required this.db, required this.table});
+  const DbViewerTable({super.key, required this.db, required this.table});
 
   final SqlDb db;
   final DbTable table;

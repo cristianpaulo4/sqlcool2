@@ -12,12 +12,9 @@ import 'models.dart';
 import 'schema/models/schema.dart';
 import 'schema/models/table.dart';
 
-/// A class to handle database operations
+/// Uma classe para gerir operações de base de dados
 class Db {
-  /// An Sqlite database:
-  ///
-  /// Use this parameter if you want to work with an existing
-  /// Sqflite database
+  /// Uma base de dados Sqlite existente
   final Database? sqfliteDatabase;
 
   Database? _db;
@@ -31,7 +28,7 @@ class Db {
   bool _isReady = false;
   final _schema = DbSchema();
 
-  /// An empty database. Has to be initialized with [init]
+  /// Uma base de dados vazia. Deve ser inicializada com [init]
   Db({this.sqfliteDatabase}) {
     if (sqfliteDatabase != null) {
       _db = sqfliteDatabase;
@@ -41,67 +38,48 @@ class Db {
     }
   }
 
-  /// A stream of [DatabaseChangeEvent] with all the changes
-  /// that occur in the database
+  /// Um stream de [DatabaseChangeEvent] com todas as mudanças na base de dados
   Stream<DatabaseChangeEvent> get changefeed => _changeFeedController.stream;
 
-  /// This Sqflite [Database]
+  /// A instância do Sqflite [Database]
   Database? get database => _db;
 
-  /// This Sqlite file
+  /// O ficheiro Sqlite
   File? get file => _dbFile;
 
-  /// Check the existence of a schema
-  bool get hasSchema => _schema != null;
+  /// Verifica a existência de um esquema
+  bool get hasSchema => true;
 
-  /// This database state
+  /// Estado da base de dados
   bool get isReady => _isReady;
 
-  /// The on ready callback: fired when the database
-  /// is ready to operate
+  /// Callback disparado quando a base de dados está pronta
   Future<void> get onReady => _readyCompleter.future;
 
-  /// This database schema
+  /// O esquema da base de dados
   DbSchema get schema => _schema;
 
-  /// Initialize the database
-  ///
-  /// The database can be initialized either from an asset file
-  /// with the [fromAsset] parameter or from a [schema] or from
-  /// create table and other [queries]. Either a [schema] or [query]
-  /// parameter must be provided.
+  /// Inicializa a base de dados
   Future<void> init(
-      {required String path,
-      bool absolutePath = false,
-      List<String> queries = const <String>[],
-      List<DbTable> schema = const <DbTable>[],
-      bool verbose = false,
-      String? fromAsset,
-      bool debug = false}) async {
-    /// The [path] is where the database file will be stored. It is by
-    /// default relative to the documents directory unless [absolutePath]
-    /// is true.
-    /// [queries] is a list of queries to run at initialization
-    /// and [debug] set Sqflite debug mode on.
-    ///
-    /// Either a [queries] or a [schema] must be provided if the
-    /// database is not initialized from an asset
-    assert(path != null);
-    /*if (fromAsset == null && queries.isEmpty && schema.isEmpty) {
-      throw ArgumentError("Either a [queries] or a [schema] must be provided");
-    }*/
+      {required final String path,
+      final bool absolutePath = false,
+      final List<String> queries = const <String>[],
+      final List<DbTable> schema = const <DbTable>[],
+      final bool verbose = false,
+      final String? fromAsset,
+      final bool debug = false}) async {
     if (debug) {
       await Sqflite.setDebugModeOn(true);
     }
     var dbpath = path;
     if (!absolutePath) {
       final documentsDirectory = await getApplicationDocumentsDirectory();
-      dbpath = documentsDirectory.path + "/" + path;
+      dbpath = "${documentsDirectory.path}/$path";
     }
     if (verbose) {
-      print("INITIALIZING DATABASE at " + dbpath);
+      print("INITIALIZING DATABASE at $dbpath");
     }
-    // copy the database from an asset if necessary
+
     var checkCreateQueries = false;
     if (fromAsset != null) {
       final file = File(dbpath);
@@ -109,105 +87,76 @@ class Db {
         if (verbose) {
           print("Copying the database from asset $fromAsset");
         }
-        List<int> bytes;
         try {
-          // read
-          final data = await rootBundle.load("$fromAsset");
-          bytes =
+          final data = await rootBundle.load(fromAsset);
+          final bytes =
               data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-        } catch (e) {
-          throw DatabaseAssetProblem("Unable to read database from asset: $e");
-        }
-        try {
-          // create the directories path if necessary
           if (!file.parent.existsSync()) {
             file.parent.createSync(recursive: true);
           }
-          // write
           await file.writeAsBytes(bytes);
           checkCreateQueries = true;
         } catch (e) {
-          throw DatabaseAssetProblem("Unable to write database from asset: $e");
+          throw DatabaseAssetProblem("Unable to read database from asset: $e");
         }
       }
     }
+
     if (this._db == null) {
       await _mutex.synchronized(() async {
-        // open
         if (verbose) {
           print("OPENING database");
         }
         this._db = await openDatabase(dbpath, version: 1,
-            onCreate: (Database _sqfliteDb, int version) async {
+            onCreate: (final Database _sqfliteDb, final int version) async {
           await _initQueries(schema, queries, _sqfliteDb, verbose);
-        }, onOpen: (Database _sqfliteDb) async {
-          // run create queries for file copied from an asset
+        }, onOpen: (final Database _sqfliteDb) async {
           if (fromAsset != null && checkCreateQueries) {
-            if (schema != null || queries.isNotEmpty) {
-              await _initQueries(schema, queries, _sqfliteDb, verbose);
-            }
+            await _initQueries(schema, queries, _sqfliteDb, verbose);
           }
         });
       });
     }
+
     if (verbose) {
       print("DATABASE INITIALIZED");
     }
     _dbFile = File(dbpath);
-    // set internal schema
     _schema.tables = schema.toSet();
-    // the database is ready to use
+
     if (!_readyCompleter.isCompleted) {
       _readyCompleter.complete();
     }
     _isReady = true;
   }
 
-  /// Insert a row in a table if it is not present already
-  ///
-  /// [table] the table to insert into. [row] is a map of the data
-  /// to insert
-  ///
-  /// Returns a future with the last inserted id
-  @Deprecated(
-      "The insertIfNotExists function will be removed after version 4.4.0")
-  Future<int?> insertIfNotExists(
-      {required String table,
-      required Map<String, String?> row,
-      bool verbose = false}) async {
+  /// Insere uma linha se ela ainda não estiver presente
+  @Deprecated("A função insertIfNotExists será removida após a versão 4.4.0")
+  Future<int> insertIfNotExists(
+      {required final String table,
+      required final Map<String, String> row,
+      final bool verbose = false}) async {
     return _insert(table: table, row: row, ifNotExists: true, verbose: verbose);
   }
 
-  /// Insert a row in a table
-  ///
-  /// [table] the table to insert into. [row] is a map of the data
-  /// to insert
-  ///
-  /// Returns a future with the last inserted id
-  Future<int?> insert(
-      {required String table,
-      required Map<String, String?> row,
-      bool verbose = false}) async {
+  /// Insere uma linha numa tabela
+  Future<int> insert(
+      {required final String table,
+      required final Map<String, String> row,
+      final bool verbose = false}) async {
     return _insert(table: table, row: row, verbose: verbose);
   }
 
-  /// Insert a row in a table with conflict algorithm
-  ///
-  /// [table] the table to insert into. [row] is a map of the data
-  /// to insert
-  ///
-  /// Returns a future with the last inserted id
-  Future<int?> insertManageConflict(
-      {required String table,
-      required ConflictAlgorithm conflictAlgorithm,
-      required Map<String, dynamic> row,
-      bool verbose = false}) async {
-    int? id;
+  /// Insere uma linha gerindo conflitos
+  Future<int> insertManageConflict(
+      {required final String table,
+      required final ConflictAlgorithm conflictAlgorithm,
+      required final Map<String, dynamic> row,
+      final bool verbose = false}) async {
+    var id = 0;
     try {
-      if (!_isReady) {
-        throw DatabaseNotReady();
-      }
-      await _db!.transaction((txn) async {
+      if (!_isReady) throw DatabaseNotReady();
+      await _db!.transaction((final txn) async {
         id = await txn.insert(table, row, conflictAlgorithm: conflictAlgorithm);
       });
     } catch (e) {
@@ -216,81 +165,37 @@ class Db {
     return id;
   }
 
-  /// Serialize a string value to db
-  String _serializeStringValue(String? initial) {
-    if (initial == null) {
-      // Null value
-      return "NULL";
-    }
-    final isNum = num.tryParse(initial) != null;
-    if (isNum) {
-      // Numeric value
-      return initial;
-    }
-    // String value
-    return "'$initial'";
-  }
-
-  Future<int?> _insert(
-      {required String table,
-      required Map<String, String?> row,
-      bool ifNotExists = false,
-      bool verbose = false}) async {
-    int? id;
+  Future<int> _insert(
+      {required final String table,
+      required final Map<String, String> row,
+      final bool ifNotExists = false,
+      final bool verbose = false}) async {
+    var id = 0;
     await _mutex.synchronized(() async {
       try {
-        if (!_isReady) {
-          throw DatabaseNotReady();
-        }
+        if (!_isReady) throw DatabaseNotReady();
         final timer = Stopwatch()..start();
-        final n = row.length;
-        var i = 1;
-        final datapoint = <String?>[];
-        final fieldsBuf = StringBuffer();
-        final valuesBuf = StringBuffer();
-        for (final k in row.keys) {
-          fieldsBuf.write("$k");
-          valuesBuf.write("?");
-          final v = row[k];
-          datapoint.add(v);
-          if (i < n) {
-            fieldsBuf.write(",");
-            valuesBuf.write(",");
-          }
-          i++;
-        }
-        var q =
-            "INSERT INTO $table (${fieldsBuf.toString()}) VALUES(${valuesBuf.toString()})";
-        if (ifNotExists) {
-          var where = "";
-          var i = 0;
-          row.forEach((k, v) {
-            if (i > 0) {
-              where += " AND ";
-            }
-            final val = _serializeStringValue(v);
-            where += '$k=$val';
-            ++i;
-          });
-          q += " IF NOT EXISTS (SELECT id from $table WHERE $where) LIMIT 1";
-        }
-        await _db!.transaction((txn) async {
+        final datapoint = row.values.toList();
+        final fields = row.keys.join(",");
+        final placeholders = List.filled(row.length, "?").join(",");
+
+        final q = "INSERT INTO $table ($fields) VALUES ($placeholders)";
+
+        await _db!.transaction((final txn) async {
           id = await txn.rawInsert(q, datapoint);
-        }).catchError((dynamic e) {
-          throw WriteQueryException("Can not insert in table $table: $e");
         });
-        final qStr = "$q $row";
+
         timer.stop();
         _changeFeedController.sink.add(DatabaseChangeEvent(
             type: DatabaseChange.insert,
             value: 1,
             data: row,
-            query: qStr,
+            query: q,
             table: table,
             executionTime: timer.elapsedMicroseconds));
+
         if (verbose) {
-          final msg = "$q $row in ${timer.elapsedMilliseconds} ms";
-          print(msg);
+          print("$q $row in ${timer.elapsedMilliseconds} ms");
         }
       } catch (e) {
         rethrow;
@@ -299,18 +204,18 @@ class Db {
     return id;
   }
 
-  /// A select query with a join
-  Future<List<Map<String, dynamic>>?> join(
-          {required String? table,
-          required String? joinTable,
-          required String? joinOn,
-          String columns = "*",
-          int? offset,
-          int? limit,
-          String? orderBy,
-          String? where,
-          String? groupBy,
-          bool verbose = false}) async =>
+  /// Uma consulta select com join
+  Future<List<Map<String, dynamic>>> join(
+          {required final String table,
+          required final String joinTable,
+          required final String joinOn,
+          final String columns = "*",
+          final int? offset,
+          final int? limit,
+          final String? orderBy,
+          final String? where,
+          final String? groupBy,
+          final bool verbose = false}) async =>
       _join(
           table: table,
           joinTable: joinTable,
@@ -323,197 +228,110 @@ class Db {
           groupBy: groupBy,
           verbose: verbose);
 
-  /// A select query with a join on multiple tables
-  Future<List<Map<String, dynamic>>?> mJoin(
-      {required String table,
-      required List<String> joinsTables,
-      required List<String> joinsOn,
-      String columns = "*",
-      int? offset,
-      int? limit,
-      String? orderBy,
-      String? where,
-      String? groupBy,
-      bool verbose = false}) async {
-    /// [table] the table to select from
-    /// [joinsTables] the tables to join from
-    /// [joinsOn] the columns to join
-    /// [columns] the columns to return
-    /// [where] the sql where clause
-    /// [orderBy] the sql order_by clause
-    /// [limit] the sql limit clause
-    /// [offset] the sql offset clause
-    /// [verbose] print the query
-    /// returns the selected data
-    if (!_isReady) {
-      throw DatabaseNotReady();
-    }
+  /// Uma consulta select com múltiplos joins
+  Future<List<Map<String, dynamic>>> mJoin(
+      {required final String table,
+      required final List<String> joinsTables,
+      required final List<String> joinsOn,
+      final String columns = "*",
+      final int? offset,
+      final int? limit,
+      final String? orderBy,
+      final String? where,
+      final String? groupBy,
+      final bool verbose = false}) async {
+    if (!_isReady) throw DatabaseNotReady();
     final timer = Stopwatch()..start();
     var q = "SELECT $columns FROM $table";
-    var i = 0;
-    joinsTables.forEach((_) {
+    for (var i = 0; i < joinsTables.length; i++) {
       q = "$q INNER JOIN ${joinsTables[i]} ON ${joinsOn[i]}";
-      ++i;
-    });
+    }
 
-    if (where != null) {
-      q += " WHERE $where";
-    }
-    if (groupBy != null) {
-      q += " GROUP BY $groupBy";
-    }
-    if (orderBy != null) {
-      q += " ORDER BY $orderBy";
-    }
-    if (limit != null) {
-      q += " LIMIT $limit";
-    }
-    if (offset != null) {
-      q += " OFFSET $offset";
-    }
-    List<Map<String, dynamic>>? res;
-    await _db!.transaction((txn) async {
-      res = await txn.rawQuery(q);
-    }).catchError((dynamic e) {
-      throw ReadQueryException("Join query error: $e");
-    });
+    if (where != null) q += " WHERE $where";
+    if (groupBy != null) q += " GROUP BY $groupBy";
+    if (orderBy != null) q += " ORDER BY $orderBy";
+    if (limit != null) q += " LIMIT $limit";
+    if (offset != null) q += " OFFSET $offset";
+
+    final res = await _db!.rawQuery(q);
     timer.stop();
     if (verbose) {
-      final msg = "$q in ${timer.elapsedMilliseconds} ms";
-      print(msg);
+      print("$q in ${timer.elapsedMilliseconds} ms");
     }
     return res;
   }
 
-  /// Execute a query
-  Future<List<Map<String, dynamic>>?> query(String? q,
-      {bool verbose = false}) async {
-    /// [q] the query to execute
-    try {
-      if (!_isReady) {
-        throw DatabaseNotReady();
-      }
-      final timer = Stopwatch()..start();
-      List<Map<String, dynamic>>? res;
-      await _db!.transaction((txn) async {
-        res = await txn.rawQuery(q!);
-      }).catchError((dynamic e) =>
-          throw RawQueryException("Can not execute query $q $e"));
-      timer.stop();
-      if (verbose) {
-        final msg = "$q in ${timer.elapsedMilliseconds} ms";
-        print(msg);
-      }
-      return res;
-    } catch (e) {
-      rethrow;
+  /// Executa uma query SQL direta
+  Future<List<Map<String, dynamic>>> query(final String q,
+      {final bool verbose = false}) async {
+    if (!_isReady) throw DatabaseNotReady();
+    final timer = Stopwatch()..start();
+    final res = await _db!.rawQuery(q);
+    timer.stop();
+    if (verbose) {
+      print("$q in ${timer.elapsedMilliseconds} ms");
     }
+    return res;
   }
 
-  /// A select query
-  Future<List<Map<String, dynamic>>?> select(
-      {required String? table,
-      String columns = "*",
-      String? where,
-      String? orderBy,
-      int? limit,
-      int? offset,
-      String? groupBy,
-      bool verbose = false}) async {
-    /// [table] the table to select from
-    /// [columns] the columns to return
-    /// [where] the sql where clause
-    /// [orderBy] the sql order_by clause
-    /// [limit] the sql limit clause
-    /// [offset] the sql offset clause
-    /// [verbose] print the query
-    /// returns the selected data
-    try {
-      if (!_isReady) {
-        throw DatabaseNotReady();
-      }
-      final timer = Stopwatch()..start();
-      var q = "SELECT $columns FROM $table";
-      if (where != null) {
-        q += " WHERE $where";
-      }
-      if (groupBy != null) {
-        q += " GROUP BY $groupBy";
-      }
-      if (orderBy != null) {
-        q += " ORDER BY $orderBy";
-      }
-      if (limit != null) {
-        q += " LIMIT $limit";
-      }
-      if (offset != null) {
-        q += " OFFSET $offset";
-      }
-      List<Map<String, dynamic>>? res;
-      await _db!.transaction((txn) async {
-        res = await txn.rawQuery(q);
-      }).catchError((dynamic e) =>
-          throw ReadQueryException("Can not select from table $table $e"));
-      timer.stop();
-      if (verbose) {
-        final msg = "$q in ${timer.elapsedMilliseconds} ms";
-        print(msg);
-      }
-      return res;
-    } catch (e) {
-      rethrow;
+  /// Uma consulta select
+  Future<List<Map<String, dynamic>>> select(
+      {required final String table,
+      final String columns = "*",
+      final String? where,
+      final String? orderBy,
+      final int? limit,
+      final int? offset,
+      final String? groupBy,
+      final bool verbose = false}) async {
+    if (!_isReady) throw DatabaseNotReady();
+    final timer = Stopwatch()..start();
+    var q = "SELECT $columns FROM $table";
+    if (where != null) q += " WHERE $where";
+    if (groupBy != null) q += " GROUP BY $groupBy";
+    if (orderBy != null) q += " ORDER BY $orderBy";
+    if (limit != null) q += " LIMIT $limit";
+    if (offset != null) q += " OFFSET $offset";
+
+    final res = await _db!.rawQuery(q);
+    timer.stop();
+    if (verbose) {
+      print("$q in ${timer.elapsedMilliseconds} ms");
     }
+    return res;
   }
 
-  /// Update some datapoints in the database
+  /// Atualiza dados na base de dados
   Future<int> update(
-      {required String table,
-      required Map<String, String?> row,
-      required String where,
-      bool verbose = false}) async {
-    /// [table] is the table to use, [row] is a map of the data to update
-    /// and [where] the sql where clause
-    ///
-    /// Returns a future with a count of the updated rows
+      {required final String table,
+      required final Map<String, String> row,
+      required final String where,
+      final bool verbose = false}) async {
     var updated = 0;
     await _mutex.synchronized(() async {
-      if (!_isReady) {
-        throw DatabaseNotReady();
-      }
+      if (!_isReady) throw DatabaseNotReady();
       final timer = Stopwatch()..start();
       try {
-        var pairs = "";
-        final n = row.length - 1;
-        var i = 0;
-        final datapoint = <String?>[];
-        final buf = StringBuffer();
-        for (final el in row.keys) {
-          buf..write("$pairs")..write("$el")..write("= ?");
-          pairs = buf.toString();
-          datapoint.add(row[el]);
-          if (i < n) {
-            pairs = ", ";
-          }
-          i++;
-        }
-        final q = 'UPDATE $table SET $pairs WHERE $where';
-        await _db!.transaction((txn) async {
+        final datapoint = <String>[];
+        final setStatements = <String>[];
+        row.forEach((final key, final value) {
+          setStatements.add("$key = ?");
+          datapoint.add(value);
+        });
+
+        final q = 'UPDATE $table SET ${setStatements.join(", ")} WHERE $where';
+        await _db!.transaction((final txn) async {
           updated = await txn.rawUpdate(q, datapoint);
-        }).catchError((dynamic e) => throw WriteQueryException(
-            "Can not update data in table $table $e"));
-        final qStr = "$q $datapoint";
+        });
+
         timer.stop();
         _changeFeedController.sink.add(DatabaseChangeEvent(
             type: DatabaseChange.update,
             value: updated,
-            query: qStr,
+            query: q,
             table: table,
             data: row,
             executionTime: timer.elapsedMicroseconds));
-        if (verbose) {
-          final msg = "$q $row in ${timer.elapsedMilliseconds} ms";
-          print(msg);
-        }
         return updated;
       } catch (e) {
         rethrow;
@@ -522,316 +340,173 @@ class Db {
     return updated;
   }
 
-  /// Insert a row if it does not exist or update it
-  ///
-  /// It is highly recommended to use an unique index for the table
-  /// to upsert into
+  /// Insere ou atualiza (Upsert)
   Future<void> upsert(
-      {required String table,
-      required Map<String, String?> row,
-      //@required List<String> columns,
-      List<String> preserveColumns = const [],
-      String? indexColumn,
-      bool verbose = false}) async {
-    /// The [preserveColumns] is used to keep the current values
-    /// for some columns. If this parameter is used an [indexColumn]
-    /// must be provided to search for the value of the column to preserve
+      {required final String table,
+      required final Map<String, String> row,
+      final List<String> preserveColumns = const [],
+      final String? indexColumn,
+      final bool verbose = false}) async {
     await _mutex.synchronized(() async {
-      if (!_isReady) {
-        throw DatabaseNotReady();
-      }
-      if (preserveColumns.isNotEmpty) {
-        if (indexColumn == null) {
-          throw ArgumentError("Please provide a value for indexColumn "
-              "if you use preserveColumns");
+      if (!_isReady) throw DatabaseNotReady();
+      final timer = Stopwatch()..start();
+
+      final fields = <String>[];
+      final values = <String>[];
+
+      row.forEach((final k, final v) {
+        fields.add(k);
+        if (preserveColumns.contains(k)) {
+          values.add(
+              "(SELECT $k FROM $table WHERE $indexColumn='${row[indexColumn]}')");
+        } else {
+          values.add("'$v'");
         }
-      }
-      try {
-        final timer = Stopwatch()..start();
-        var fields = "";
-        var values = "";
-        preserveColumns.forEach((c) {
-          row[c] = "";
-        });
-        final n = row.length;
-        var i = 1;
-        final fieldsBuf = StringBuffer();
-        final valuesBuf = StringBuffer();
-        for (final k in row.keys) {
-          fieldsBuf.write("$k");
-          if (preserveColumns.contains(k)) {
-            valuesBuf.write("(SELECT $k FROM $table WHERE "
-                "$indexColumn='${row[indexColumn!]}')");
-          } else {
-            final v = _serializeStringValue(row[k]);
-            valuesBuf.write(v);
-          }
-          //pairs += "$k='${row[k]}'";
-          if (i < n) {
-            //fields += ",";
-            fieldsBuf.write(",");
-            valuesBuf.write(",");
-            //pairs += ",";
-          }
-          i++;
-        }
-        fields = fieldsBuf.toString();
-        values = valuesBuf.toString();
-        // This only works for Sqlite > 3.24
-        /*
-        String q = "INSERT INTO $table ($fields) VALUES($values)";
-        q += " ON CONFLICT($columns) DO UPDATE SET $pairs";*/
-        final q = "INSERT OR REPLACE INTO $table ($fields) VALUES($values)";
-        await _db!.transaction((txn) async {
-          await txn.execute(q);
-        }).catchError((dynamic e) =>
-            throw WriteQueryException("Can not upsert into table $table $e"));
-        timer.stop();
-        _changeFeedController.sink.add(DatabaseChangeEvent(
-            type: DatabaseChange.upsert,
-            value: i,
-            query: q,
-            table: table,
-            data: row,
-            executionTime: timer.elapsedMicroseconds));
-        if (verbose) {
-          print("$q $row in ${timer.elapsedMilliseconds} ms");
-        }
-      } catch (e) {
-        rethrow;
-      }
+      });
+
+      final q =
+          "INSERT OR REPLACE INTO $table (${fields.join(',')}) VALUES(${values.join(',')})";
+      await _db!.execute(q);
+      timer.stop();
+
+      _changeFeedController.sink.add(DatabaseChangeEvent(
+          type: DatabaseChange.upsert,
+          value: row.length,
+          query: q,
+          table: table,
+          data: row,
+          executionTime: timer.elapsedMicroseconds));
     });
   }
 
-  /// Insert rows in a table
-  Future<List<dynamic>> batchInsert(
-      {required String table,
-      required List<Map<String, String>> rows,
-      ConflictAlgorithm conflictAlgorithm = ConflictAlgorithm.rollback,
-      bool verbose = false}) async {
+  /// Insere várias linhas em lote
+  Future<List<dynamic>> batchInsert({
+    required final String table,
+    required final List<Map<String, String>> rows,
+    final ConflictAlgorithm conflictAlgorithm = ConflictAlgorithm.rollback,
+    final bool verbose = false,
+  }) async {
+    if (!_isReady) throw DatabaseNotReady();
+    final timer = Stopwatch()..start();
     var res = <dynamic>[];
-    await _mutex.synchronized(() async {
-      try {
-        if (!_isReady) {
-          throw DatabaseNotReady();
-        }
-        final timer = Stopwatch()..start();
 
-        await _db!.transaction((txn) async {
-          final batch = txn.batch();
-          rows.forEach((row) {
-            batch.insert(table, row, conflictAlgorithm: conflictAlgorithm);
-            _changeFeedController.sink.add(DatabaseChangeEvent(
-                type: DatabaseChange.insert,
-                value: 1,
-                query: "",
-                table: table,
-                data: row,
-                executionTime: timer.elapsedMicroseconds));
-          });
-          res = await batch.commit();
-        });
-        timer.stop();
-        if (verbose) {
-          final msg = "Inserted ${rows.length} records "
-              "in ${timer.elapsedMilliseconds} ms";
-          print(msg);
-        }
-      } catch (e) {
-        rethrow;
+    await _db!.transaction((final txn) async {
+      final batch = txn.batch();
+      for (final row in rows) {
+        batch.insert(table, row, conflictAlgorithm: conflictAlgorithm);
+        _changeFeedController.sink.add(DatabaseChangeEvent(
+          type: DatabaseChange.insert,
+          value: 1,
+          query: "BATCH INSERT",
+          table: table,
+          data: row,
+          executionTime: timer.elapsedMicroseconds,
+        ));
       }
+      res = await batch.commit();
     });
     return res;
   }
 
-  /// count rows in a table
-  Future<int?> count(
-      {required String table,
-      String? where,
-      String columns = "id",
-      bool verbose = false}) async {
-    /// [table] is the table to use and [where] the sql where clause
-    ///
-    /// Returns a future with the count of the rows
-    try {
-      if (!_isReady) {
-        throw DatabaseNotReady();
-      }
-      final timer = Stopwatch()..start();
-      var w = "";
-      if (where != null) {
-        w = " WHERE $where";
-      }
-      final q = 'SELECT COUNT($columns) FROM $table$w';
-      int? c;
-      await _db!.transaction((txn) async {
-        c = Sqflite.firstIntValue(await txn.rawQuery(q));
-      });
-      timer.stop();
-      if (verbose) {
-        final msg = "$q in ${timer.elapsedMilliseconds} ms";
-        print(msg);
-      }
-      return c;
-    } catch (e) {
-      rethrow;
-    }
+  /// Conta linhas numa tabela
+  Future<int> count(
+      {required final String table,
+      final String? where,
+      final String columns = "id",
+      final bool verbose = false}) async {
+    if (!_isReady) throw DatabaseNotReady();
+    var q = "SELECT COUNT($columns) FROM $table";
+    if (where != null) q += " WHERE $where";
+    final res = await _db!.rawQuery(q);
+    return Sqflite.firstIntValue(res) ?? 0;
   }
 
-  /// Delete some datapoints from the database
+  /// Elimina registos da base de dados
   Future<int> delete(
-      {required String table,
-      required String? where,
-      bool verbose = false}) async {
-    /// [table] is the table to use and [where] the sql where clause
-    ///
-    /// Returns a future with a count of the deleted rows
+      {required final String table,
+      required final String where,
+      final bool verbose = false}) async {
     var deleted = 0;
     await _mutex.synchronized(() async {
-      if (!_isReady) {
-        throw DatabaseNotReady();
-      }
-      try {
-        final timer = Stopwatch()..start();
-        final q = 'DELETE FROM $table WHERE $where';
-        await _db!.transaction((txn) async {
-          deleted = await txn.rawDelete(q);
-        });
-        timer.stop();
-        _changeFeedController.sink.add(DatabaseChangeEvent(
-            type: DatabaseChange.delete,
-            value: deleted,
-            query: q,
-            table: table,
-            executionTime: timer.elapsedMicroseconds));
-        if (verbose) {
-          final msg = "$q in ${timer.elapsedMilliseconds} ms";
-          print(msg);
-        }
-        return deleted;
-      } catch (e) {
-        rethrow;
-      }
+      if (!_isReady) throw DatabaseNotReady();
+      final timer = Stopwatch()..start();
+      final q = 'DELETE FROM $table WHERE $where';
+      await _db!.transaction((final txn) async {
+        deleted = await txn.rawDelete(q);
+      });
+      timer.stop();
+      _changeFeedController.sink.add(DatabaseChangeEvent(
+          type: DatabaseChange.delete,
+          value: deleted,
+          query: q,
+          table: table,
+          executionTime: timer.elapsedMicroseconds));
+      return deleted;
     });
     return deleted;
   }
 
-  /// Dispose the changefeed stream when finished using
-  void dispose() {
-    _changeFeedController.close();
-  }
-
-  /// Check if a value exists in the table
+  /// Verifica se um valor existe na tabela
   Future<bool> exists(
-      {required String table,
-      required String where,
-      bool verbose = false}) async {
-    /// [table] is the table to use and [where] the sql where clause
-    ///
-    /// Returns a future with true if the data exists
-    try {
-      if (!_isReady) {
-        throw DatabaseNotReady();
-      }
-      final timer = Stopwatch()..start();
-      final q = 'SELECT COUNT(*) FROM $table WHERE $where';
-      late int count;
-      await _db!.transaction((txn) async {
-        count = Sqflite.firstIntValue(await txn.rawQuery(q))!;
-      });
-      timer.stop();
-      if (verbose) {
-        final msg = "$q in ${timer.elapsedMilliseconds} ms";
-        print(msg);
-      }
-      if (count > 0) {
-        return true;
-      }
-    } catch (e) {
-      rethrow;
-    }
-    return false;
+      {required final String table,
+      required final String where,
+      final bool verbose = false}) async {
+    final c = await count(table: table, where: where, verbose: verbose);
+    return c > 0;
   }
 
-  Future<void> _initQueries(List<DbTable> schema, List<String> queries,
-      Database _sqfliteDb, bool verbose) async {
-    var _queries = queries;
-    if (schema != null) {
-      final schemaQueries = <String>[];
-      schema
-          .forEach((tableSchema) => schemaQueries.addAll(tableSchema.queries));
-      schemaQueries.addAll(queries);
-      _queries = schemaQueries;
+  Future<void> _initQueries(
+      final List<DbTable> schema,
+      final List<String> queries,
+      final Database _sqfliteDb,
+      final bool verbose) async {
+    final allQueries = <String>[];
+    for (final table in schema) {
+      allQueries.addAll(table.queries);
     }
-    if (_queries.isNotEmpty) {
-      await _sqfliteDb.transaction((txn) async {
-        for (final q in _queries) {
-          final timer = Stopwatch()..start();
+    allQueries.addAll(queries);
+
+    if (allQueries.isNotEmpty) {
+      await _sqfliteDb.transaction((final txn) async {
+        for (final q in allQueries) {
           await txn.execute(q);
-          timer.stop();
-          if (verbose) {
-            final msg = "$q in ${timer.elapsedMilliseconds} ms";
-            print(msg);
-          }
         }
       });
     }
   }
 
-  Future<List<Map<String, dynamic>>?> _join(
-      {required String? table,
-      required String? joinTable,
-      required String? joinOn,
-      String columns = "*",
-      int? offset,
-      int? limit,
-      String? orderBy,
-      String? where,
-      String? groupBy,
-      bool byPassReady = false,
-      bool verbose = false}) async {
-    /// [table] the table to select from
-    /// [joinTable] the table to join from
-    /// [joinOn] the columns to join
-    /// [columns] the columns to return
-    /// [where] the sql where clause
-    /// [orderBy] the sql order_by clause
-    /// [limit] the sql limit clause
-    /// [offset] the sql offset clause
-    /// [verbose] print the query
-    /// returns the selected data
-    if (!byPassReady && !_isReady) {
-      throw DatabaseNotReady();
-    }
+  Future<List<Map<String, dynamic>>> _join(
+      {required final String table,
+      required final String joinTable,
+      required final String joinOn,
+      final String columns = "*",
+      final int? offset,
+      final int? limit,
+      final String? orderBy,
+      final String? where,
+      final String? groupBy,
+      final bool byPassReady = false,
+      final bool verbose = false}) async {
+    if (!byPassReady && !_isReady) throw DatabaseNotReady();
     final timer = Stopwatch()..start();
     var q = "SELECT $columns FROM $table";
     q = "$q INNER JOIN $joinTable ON $joinOn";
-    if (where != null) {
-      q += " WHERE $where";
-    }
-    if (groupBy != null) {
-      q += " GROUP BY $groupBy";
-    }
-    if (orderBy != null) {
-      q += " ORDER BY $orderBy";
-    }
-    if (limit != null) {
-      q += " LIMIT $limit";
-    }
-    if (offset != null) {
-      q += " OFFSET $offset";
-    }
-    List<Map<String, dynamic>>? res;
-    await _db!.transaction((txn) async {
-      res = await txn.rawQuery(q).catchError((dynamic e) {
-        throw ReadQueryException("Join query error: $e");
-      });
-    });
+    if (where != null) q += " WHERE $where";
+    if (groupBy != null) q += " GROUP BY $groupBy";
+    if (orderBy != null) q += " ORDER BY $orderBy";
+    if (limit != null) q += " LIMIT $limit";
+    if (offset != null) q += " OFFSET $offset";
+
+    final res = await _db!.rawQuery(q);
     timer.stop();
     if (verbose) {
-      final msg = "$q in ${timer.elapsedMilliseconds} ms";
-      print(msg);
+      print("$q in ${timer.elapsedMilliseconds} ms");
     }
     return res;
+  }
+
+  /// Fecha o changefeed
+  void dispose() {
+    _changeFeedController.close();
   }
 }
